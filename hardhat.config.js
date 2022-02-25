@@ -5,7 +5,6 @@ require("@nomiclabs/hardhat-etherscan");
 // https://hardhat.org/guides/create-task.html
 task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   const accounts = await hre.ethers.getSigners();
-
   for (const account of accounts) {
     console.log(account.address);
   }
@@ -26,17 +25,5 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
         runs: 1000,
       },
     },
-  },
-  networks: {
-    rinkeby: {
-      url: provess.env.TEST_NET_NODE,
-      accounts: [provess.env.TEST_NET_ACCOUNT_KEY]
-    },
-  },
-  etherscan: {
-    apiKey: {
-        rinkeby: provess.env.TEST_NET_API_KEY,
-        mainnet: provess.env.MAIN_NET_API_KEY
-    }
   }
 };

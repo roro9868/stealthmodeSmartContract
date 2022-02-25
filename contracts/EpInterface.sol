@@ -11,7 +11,3 @@ interface ERC20 {
     function increaseAllowance(address spender, uint256 addedValue) external;
     function decreaseAllowance(address spender, uint256 subtractedValue) external;
 }
-
-interface IERC1155 {
-    function balanceOf(address account, uint256 id) external view returns (uint256);
-}

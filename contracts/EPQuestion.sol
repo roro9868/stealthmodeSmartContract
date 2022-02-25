@@ -3,18 +3,17 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "RichNFT.sol";
+import "./EpInterface.sol";
 
 contract EPQuestion is Ownable  {
 
     struct Question { 
         address owner;
         address answerer;
-        address delegateAmount;
+        uint256 delegateAmount;
     }
 
-    mapping(string => address) public questionsInfo;
-    mapping(address => string[]) public userQuestions;
+    mapping(string => Question) public questionsInfo;
 
     uint256 public feePercent;
     uint256 public stakingPercent;
@@ -43,8 +42,8 @@ contract EPQuestion is Ownable  {
        emit parameterAdjusted("questionMinamount", _questionMinAmount);
     }
 
-    function adjustFeePercent(uint256 _feeAmount) public onlyOwner {
-        feeAmount = _feeAmount;
+    function adjustFeePercent(uint256 _feePercent) public onlyOwner {
+        feePercent = _feePercent;
     }
 
     function adjustStakingPercent(uint256 _stakingPercent) public onlyOwner {
@@ -58,38 +57,26 @@ contract EPQuestion is Ownable  {
         token.approve(address(this), 0);
     }
 
-    function userQuestions(address account) public view returns (string[] memory) {
-        return userQuestions[msg.sender];
-    }
-
-    function question(string memory id) public view returns (address, address, uint256) {
-        return (
-            questionsInfo[id].owner,
-            questionsInfo[id].answerer,
-            questionsInfo[id].amount
-        );
-    }
-
     function postQuestion(string memory id, uint256 amount) public {
         require(token.balanceOf(msg.sender) >= amount, "Insufficnet amount to delegate");
-        require(amount >= quesiontMinAmount, "minimum question fee required");
-        require(!questionInfo[id].owner, "duplicate question id");
+        require(amount >= questionMinAmount, "minimum question fee required");
         token.transferFrom(msg.sender, address(this), amount);
-        questionsInfo[id] = Question(msg.sender, address(0), amonut);
-        userQuestions[msg.sender].push(id);
+        questionsInfo[id].owner = msg.sender;
+        questionsInfo[id].answerer = address(0);
+        questionsInfo[id].delegateAmount = amount;
         emit questionCreated(id, amount);
     }
 
     function closeQuestion(string memory id, address account) public {
-        require(questionInfo[id].owner == msg.sender, 'invalid question creator');
-        require(questionInfo[id].answerer == address(0), "Question closed");
+        require(questionsInfo[id].owner == msg.sender, 'invalid question creator');
+        require(questionsInfo[id].answerer == address(0), "Question closed");
         questionsInfo[id].answerer = account;
         uint256 delegateAmount = questionsInfo[id].delegateAmount;
         token.approve(address(this), delegateAmount);
         uint256 teamFee = delegateAmount * feePercent / 100;
         cumulatedFee += teamFee;
         uint256 stakingReserved = delegateAmount * stakingPercent / 100;
-        uint246 rewardAmount = delegateAmount - teamFee - stakingReserved;
+        uint256 rewardAmount = delegateAmount - teamFee - stakingReserved;
         token.transferFrom(address(this), account, rewardAmount);
         token.transferFrom(address(this), stakingPool, stakingReserved);
         token.approve(address(this), 0);
