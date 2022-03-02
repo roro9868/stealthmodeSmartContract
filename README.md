@@ -4,6 +4,13 @@ This project demonstrates a basic Hardhat use case. It comes with a sample contr
 
 Try running some of the following tasks:
 
+```
+owner account signature offline
+https://ethereum.stackexchange.com/questions/23701/can-i-web3-eth-sign-with-private-key
+https://blog.openzeppelin.com/signing-and-validating-ethereum-signatures/
+https://ethereum.stackexchange.com/questions/98935/modify-block-number-when-testing-with-hardhat
+```
+
 ```shell
 npx hardhat accounts
 npx hardhat compile

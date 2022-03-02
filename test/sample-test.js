@@ -66,6 +66,7 @@ describe("EPQuestion Checklist", function () {
   const questionMinAmount = ETH;
   const feePercent = 3;
   const stakingPercent = 3;
+  const cancelBlockInterval = 100;
 
   before(async () => {
     const [owner] = await ethers.getSigners()
@@ -78,7 +79,8 @@ describe("EPQuestion Checklist", function () {
       EPToken.address,
       questionMinAmount,
       feePercent,
-      stakingPercent
+      stakingPercent,
+      cancelBlockInterval
     )
     await EPQuestion.deployed()
     const tx1 = await EPToken.approve(EPQuestion.address, ETH.mul(1000000000000))
