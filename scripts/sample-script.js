@@ -15,11 +15,12 @@ async function main() {
 
   // We get the contract to deploy
   const EPTokenContract = await hre.ethers.getContractFactory("EPToken");
-  const initialSupply = 0;
-  const maxSupply = 100000000000000000000000;
+  const initialSupply = '0';
+  const maxSupply = '100000000000000000000000';
   const EPToken = await EPTokenContract.deploy(initialSupply, maxSupply);
   await EPToken.deployed();
   console.log("EPToken contract deployed to:", EPToken.address);
+
 
 }
 

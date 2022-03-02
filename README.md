@@ -19,4 +19,7 @@ npx hardhat test
 npx hardhat node
 node scripts/sample-script.js
 npx hardhat help
+
+npx hardhat run .\scripts\sample-script.js --network rinkeby
+npx hardhat verify 0x55f06a5DAC7a0A04e9b5CD8fb306429778b57FAD --network rinkeby 0 0
 ```

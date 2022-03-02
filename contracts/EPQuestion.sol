@@ -137,6 +137,7 @@ contract EPQuestion is Ownable  {
     function cancelQuestion(string memory id, string memory _message, bytes memory _sig) public {
         // signature verify
         // require(verify(_message, _sig), "Invalid signature from owner");
+        
         require(questionsInfo[id].owner == msg.sender, 'invalid question creator');
         require(questionsInfo[id].active, "Question closed");
         require(block.number - questionsInfo[id].startBlock >= cancelInterval, "cancel interval for question not reached");

@@ -1,6 +1,10 @@
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-etherscan");
 
+const PRIVATE_KEY = process.env.ACCOUNT_PRIVATE_KEY
+const RINKEBY_KEY = process.env.RINKEBY_API
+const INFURA_ID = process.env.INFURA_ID
+
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
 task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
@@ -25,5 +29,17 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
         runs: 1000,
       },
     },
+  },
+  networks: {
+    rinkeby: {
+      url: `https://rinkeby.infura.io/v3/${INFURA_ID}`,
+      accounts: [PRIVATE_KEY]
+    }
+  },
+  etherscan: {
+    apiKey: {
+      rinkeby: RINKEBY_KEY,
+      polygonMumbai: "YOUR_POLYGONSCAN_API_KEY",
+    }
   }
-};
+}
