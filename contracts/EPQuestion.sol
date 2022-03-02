@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./EpInterface.sol";
+import "hardhat/console.sol";
+
 
 contract EPQuestion is Ownable  {
 
@@ -54,14 +56,15 @@ contract EPQuestion is Ownable  {
 
     function withdrawTeamFee() public onlyOwner {
         token.approve(address(this), cumulatedFee);
-        cumulatedFee = 0;
         token.transferFrom(address(this), msg.sender, cumulatedFee);
+        cumulatedFee = 0;
         token.approve(address(this), 0);
     }
 
     function postQuestion(string memory id, uint256 amount) public {
         require(token.balanceOf(msg.sender) >= amount, "Insufficnet amount to delegate");
         require(amount >= questionMinAmount, "minimum question fee required");
+        require(questionsInfo[id].owner == address(0), "duplicate question id");
         token.transferFrom(msg.sender, address(this), amount);
         questionsInfo[id].owner = msg.sender;
         questionsInfo[id].active = true;
@@ -79,10 +82,15 @@ contract EPQuestion is Ownable  {
         cumulatedFee += teamFee;
         uint256 stakingReserved = delegateAmount * stakingPercent / 100;
         uint256 rewardAmount = delegateAmount - teamFee - stakingReserved;
+        uint256 distributedReward = 0;
         for(uint i = 0; i < account.length; i++) {
-            uint256 userRewarded = weight[i] / rewardAmount * 100;
+            require(weight[i] <= 100, "Invalid weight parameters");
+            require(account[i] != msg.sender, "Owner cannot claim reward itself");
+            uint256 userRewarded = rewardAmount * weight[i] / 100;
             token.transferFrom(address(this), account[i], userRewarded);
+            distributedReward += userRewarded;
         }
+        require(rewardAmount == distributedReward, "Rewards did not all distributed");
         token.transferFrom(address(this), stakingPool, stakingReserved);
         token.approve(address(this), 0);
         emit questionClosed(id);
