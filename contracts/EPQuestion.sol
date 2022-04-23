@@ -1,11 +1,60 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./EpInterface.sol";
-import "hardhat/console.sol";
 
+/*
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@(((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@(((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@(((((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@(((((((@@@@@@@@@@@@#(((((@@@@@@@@@@@@@(((((((@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@((((%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@((((@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((#@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@(((@@@@@@@@@(((((((@@@@@@@@@@@@#(((((((@@@@@@@@@(((@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@(((@@@@@@@@(((((((((@@@@@@@@@@@(((((((((@@@@@@@@(((@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@(((@@@@@@@@@(((((((@@@@@@@@@@@@@(((((((@@@@@@@@@(((@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@(((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@((((@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((((@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((((((@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@(((((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@((((((((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@((((((((((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@((((((((((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@((((((((((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@(((((((((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@(((((((((((((((((((((((((((((((((((((((((((%@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@((((((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@((((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@((((((((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@(((((((((((((((((((((((((((((((((((#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@(((((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@((((((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@((((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@((((((((((((((((((((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@#((((((((((((((#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+EEEEEEEEEEEEEEEEEEEEEEPPPPPPPPPPPPPPPPP   IIIIIIIIII   SSSSSSSSSSSSSSS TTTTTTTTTTTTTTTTTTTTTTT
+E::::::::::::::::::::EP::::::::::::::::P  I::::::::I SS:::::::::::::::ST:::::::::::::::::::::T
+E::::::::::::::::::::EP::::::PPPPPP:::::P I::::::::IS:::::SSSSSS::::::ST:::::::::::::::::::::T
+EE::::::EEEEEEEEE::::EPP:::::P     P:::::PII::::::IIS:::::S     SSSSSSST:::::TT:::::::TT:::::T
+  E:::::E       EEEEEE  P::::P     P:::::P  I::::I  S:::::S            TTTTTT  T:::::T  TTTTTT
+  E:::::E               P::::P     P:::::P  I::::I  S:::::S                    T:::::T        
+  E::::::EEEEEEEEEE     P::::PPPPPP:::::P   I::::I   S::::SSSS                 T:::::T        
+  E:::::::::::::::E     P:::::::::::::PP    I::::I    SS::::::SSSSS            T:::::T        
+  E:::::::::::::::E     P::::PPPPPPPPP      I::::I      SSS::::::::SS          T:::::T        
+  E::::::EEEEEEEEEE     P::::P              I::::I         SSSSSS::::S         T:::::T        
+  E:::::E               P::::P              I::::I              S:::::S        T:::::T        
+  E:::::E       EEEEEE  P::::P              I::::I              S:::::S        T:::::T        
+EE::::::EEEEEEEE:::::EPP::::::PP          II::::::IISSSSSSS     S:::::S      TT:::::::TT      
+E::::::::::::::::::::EP::::::::P          I::::::::IS::::::SSSSSS:::::S      T:::::::::T      
+E::::::::::::::::::::EP::::::::P          I::::::::IS:::::::::::::::SS       T:::::::::T      
+EEEEEEEEEEEEEEEEEEEEEEPPPPPPPPPP          IIIIIIIIII SSSSSSSSSSSSSSS         TTTTTTTTTTT      
+*/
 
 contract EPQuestion is Ownable  {
 
@@ -13,6 +62,7 @@ contract EPQuestion is Ownable  {
         address owner;
         bool active;
         uint256 startBlock;
+        uint256 expireAfter;
         uint256 delegateAmount;
     }
 
@@ -22,7 +72,6 @@ contract EPQuestion is Ownable  {
     uint256 public stakingPercent;
     uint256 public questionMinAmount;
     uint256 public cumulatedFee;
-    uint256 public cancelInterval;
 
     address public stakingPool;
     ERC20 private token;
@@ -32,43 +81,13 @@ contract EPQuestion is Ownable  {
         address _stakePoolAddress,
         uint256 _questionMinAmount,
         uint256 _feePercent,
-        uint256 _stakingPercent,
-        uint256 _blockInterval
+        uint256 _stakingPercent
     ) {
         token = ERC20(_tokenAddress);
         stakingPool = _stakePoolAddress;
         questionMinAmount = _questionMinAmount;
         feePercent = _feePercent;
         stakingPercent = _stakingPercent;
-        cancelInterval = _blockInterval;
-    }
-
-    function verify(string memory _message, bytes memory _sig) internal view returns (bool) {
-        bytes32 messageHash = getMessageHash(_message);
-        bytes32 ethSignMessage = getEthSignedMessageHash(messageHash);
-        return recover(ethSignMessage, _sig) == owner();
-    }
-
-    function getMessageHash(string memory _message) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_message));
-    }
-
-    function getEthSignedMessageHash(bytes32 _messageHash) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked("\x19Hi:\n32", _messageHash));
-    }
-
-    function recover(bytes32 _ethSignedMessageHash, bytes memory _sig) public pure returns (address) {
-        (bytes32 r, bytes32 s, uint8 v) = _split(_sig);
-        return ecrecover(_ethSignedMessageHash, v, r, s);
-    }
-
-    function _split(bytes memory _sig) internal pure returns (bytes32 r, bytes32 s, uint8 v) {
-        require(_sig.length == 65, "invalid sigature length");
-        assembly {
-            r := mload(add(_sig, 32))
-            s := mload(add(_sig, 64))
-            v := byte(0, mload(add(_sig, 96)))
-        } 
     }
 
     function adjustQuestionMinAmount(uint256 _questionMinAmount) public onlyOwner {
@@ -86,19 +105,13 @@ contract EPQuestion is Ownable  {
         emit parameterAdjusted("stakingPercent", stakingPercent);
     }
 
-    function adjustCancelInterval(uint256 blockInterval) public onlyOwner {
-        cancelInterval = blockInterval;
-        emit parameterAdjusted("cancelInterval", blockInterval);
-    }
-
     function withdrawTeamFee() public onlyOwner {
         token.approve(address(this), cumulatedFee);
         token.transferFrom(address(this), msg.sender, cumulatedFee);
         cumulatedFee = 0;
-        token.approve(address(this), 0);
     }
 
-    function postQuestion(string memory id, uint256 amount) public {
+    function postQuestion(string memory id, uint256 amount, uint256 expireAfter) public {
         require(token.balanceOf(msg.sender) >= amount, "Insufficnet amount to delegate");
         require(amount >= questionMinAmount, "minimum question fee required");
         require(questionsInfo[id].owner == address(0), "duplicate question id");
@@ -107,6 +120,7 @@ contract EPQuestion is Ownable  {
         questionsInfo[id].active = true;
         questionsInfo[id].delegateAmount = amount;
         questionsInfo[id].startBlock = block.number;
+        questionsInfo[id].expireAfter = expireAfter;
         emit questionCreated(id, amount);
     }
 
@@ -130,27 +144,27 @@ contract EPQuestion is Ownable  {
         }
         require(rewardAmount == distributedReward, "Rewards did not all distributed");
         token.transferFrom(address(this), stakingPool, stakingReserved);
-        token.approve(address(this), 0);
         emit questionClosed(id);
     }
 
-    function cancelQuestion(string memory id, string memory _message, bytes memory _sig) public {
-        // signature verify
-        // require(verify(_message, _sig), "Invalid signature from owner");
-        
-        require(questionsInfo[id].owner == msg.sender, 'invalid question creator');
-        require(questionsInfo[id].active, "Question closed");
-        require(block.number - questionsInfo[id].startBlock >= cancelInterval, "cancel interval for question not reached");
-        questionsInfo[id].active = true;
-        uint256 delegateAmount = questionsInfo[id].delegateAmount;
-        token.transferFrom(address(this), msg.sender, delegateAmount);
-        emit questionCanceled(id);
+    function closeExpiredQuestion(string[] memory ids) external onlyOwner {
+        for(uint i = 0; i < ids.length; i++) {
+            string memory id = ids[i];
+            require(questionsInfo[id].active, "Question closed");
+            require(
+                questionsInfo[id].startBlock + questionsInfo[id].expireAfter <= block.number, 
+                'Question not expired yet'
+            );
+            questionsInfo[id].active = false;
+            token.approve(address(this), questionsInfo[id].delegateAmount);
+            token.transferFrom(address(this), stakingPool, questionsInfo[id].delegateAmount);
+            emit questionExpired(id);
+        }
     }
 
     event parameterAdjusted(string name, uint256 amount);
     event questionCreated(string id, uint256 amount);
     event questionClosed(string id);
-    event questionCanceled(string id);
-
+    event questionExpired(string id);
 
 }

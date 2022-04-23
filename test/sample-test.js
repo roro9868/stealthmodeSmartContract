@@ -7,50 +7,19 @@ const ETH = BigNumber.from(10).pow(18)
 describe("EPToken Checklist", function () {
 
   let EPToken;
-  const initialSupply = 0;
-  const maxSupply = ETH.mul(10000);
+  const name = 'EPTOKEN'
+  const symbol = 'EPTOKEN'
+  const maxSupply = '100000000000000000'
 
   before(async () => {
     const EPTokenContract = await hre.ethers.getContractFactory("EPToken");
-    EPToken = await EPTokenContract.deploy(initialSupply, maxSupply);
+    EPToken = await EPTokenContract.deploy(name, symbol, maxSupply);
     await EPToken.deployed();
   });
 
   it("Max Supply match", async function () {
-    expect(await EPToken.MAX_SUPPLY()).to.equal(maxSupply);
+    expect(await EPToken.name()).to.equal(name);
   });
-
-  it("Token Owner whitelisted", async function() {
-    const [owner] = await ethers.getSigners();
-    const ownerWhitelisted = await EPToken.checkWhiteList(owner.address)
-    expect(ownerWhitelisted).to.equal(true);
-  })
-
-  it("Mint token to owner", async function() {
-    const [owner] = await ethers.getSigners();
-    const beforeBalance = await EPToken.balanceOf(owner.address)
-    const mintAmount = 1000;
-    const tx = await EPToken.mint(owner.address, mintAmount);
-    await tx.wait();
-    const afterBalance = await EPToken.balanceOf(owner.address)
-    expect(afterBalance).to.equal(beforeBalance + mintAmount)
-  })
-
-  it("Mint token max amount exceed", async function() {
-    const [owner] = await ethers.getSigners();
-    await expect(
-      EPToken.mint(owner.address, maxSupply.add(100))
-    ).to.be.revertedWith("total supply exceed");
-  })
-
-  it('unauthorized mint', async function() {
-    const [owner] = await ethers.getSigners()
-    const tx = await EPToken.setWhiteList(owner.address, false);
-    await tx.wait()
-    await expect(
-      EPToken.mint(owner.address, 100)
-    ).to.be.revertedWith("Account not whitelist to mint token");
-  })
 
 });
 
@@ -66,12 +35,11 @@ describe("EPQuestion Checklist", function () {
   const questionMinAmount = ETH;
   const feePercent = 3;
   const stakingPercent = 3;
-  const cancelBlockInterval = 100;
 
   before(async () => {
     const [owner] = await ethers.getSigners()
     const EPTokenContract = await hre.ethers.getContractFactory("EPToken");
-    EPToken = await EPTokenContract.deploy(initialSupply, maxSupply);
+    EPToken = await EPTokenContract.deploy("EPTOKEN", "EPTOKEN", maxSupply);
     await EPToken.deployed();
     const EPQusetionContract = await hre.ethers.getContractFactory("EPQuestion");
     EPQuestion = await EPQusetionContract.deploy(
@@ -79,14 +47,13 @@ describe("EPQuestion Checklist", function () {
       EPToken.address,
       questionMinAmount,
       feePercent,
-      stakingPercent,
-      cancelBlockInterval
+      stakingPercent
     )
     await EPQuestion.deployed()
     const tx1 = await EPToken.approve(EPQuestion.address, ETH.mul(1000000000000))
     tx1.wait()
-    const tx2 = await EPToken.mint(owner.address, ETH.mul(1000));
-    tx2.wait()
+    // const tx2 = await EPToken.mint(owner.address, ETH.mul(1000));
+    // tx2.wait()
     const balance = await EPToken.balanceOf(owner.address);
     console.log('token balance', balance);
   });
@@ -123,9 +90,10 @@ describe("EPQuestion Checklist", function () {
     // create a question
     const [owner] = await ethers.getSigners()
     const bountyAmonut = ETH.mul(3)
+    const expireAfter = 10000
     const balanceBefore = await EPToken.balanceOf(owner.address)
     console.log('create question balance before', balanceBefore)
-    const tx1 = await EPQuestion.postQuestion(questionId, bountyAmonut)
+    const tx1 = await EPQuestion.postQuestion(questionId, bountyAmonut, expireAfter)
     tx1.wait()
     const balanceAfter = await EPToken.balanceOf(owner.address)
     console.log('create question balance after', balanceAfter)
@@ -138,12 +106,12 @@ describe("EPQuestion Checklist", function () {
 
     // create duplicate question id is not allowed
     await expect(
-      EPQuestion.postQuestion(questionId, bountyAmonut)
+      EPQuestion.postQuestion(questionId, bountyAmonut, expireAfter)
     ).to.be.revertedWith("duplicate question id");
 
     // create duplicate question with insufficient min amount
     await expect(
-      EPQuestion.postQuestion(questionId, ETH.div(10))
+      EPQuestion.postQuestion(questionId, ETH.div(10), expireAfter)
     ).to.be.revertedWith("minimum question fee required");
 
   })
@@ -152,8 +120,9 @@ describe("EPQuestion Checklist", function () {
 
     const [owner, other1, other2] = await ethers.getSigners()
     const questionId = '2'
+    const expireAfter = 10000
     const bountyAmonut = ETH.mul(3)
-    const tx1 = await EPQuestion.postQuestion(questionId, bountyAmonut)
+    const tx1 = await EPQuestion.postQuestion(questionId, bountyAmonut, expireAfter)
     await tx1.wait()
 
     const address = [other1.address, other2.address]
@@ -185,6 +154,31 @@ describe("EPQuestion Checklist", function () {
     await tx3.wait()
     const BalanceAfter = await EPToken.balanceOf(owner.address)
     expect(BalanceBefore.add(feeForTeam)).to.equal(BalanceAfter)
+
+  })
+
+  it('close expired question', async function() {
+    
+    // https://ethereum.stackexchange.com/questions/86633/time-dependent-tests-with-hardhat
+  
+    const questionId = '3'
+    const expireAfter = 1
+    const bountyAmonut = ETH.mul(3)
+    const tx1 = await EPQuestion.postQuestion(questionId, bountyAmonut, expireAfter)
+    await tx1.wait()
+
+    const info = await EPQuestion.questionsInfo(questionId)
+    console.log(info)
+
+    const blockNumBefore = await ethers.provider.getBlockNumber();
+    console.log(blockNumBefore)
+    await ethers.provider.send('evm_mine');
+    await ethers.provider.send('evm_mine');
+    const blockNumAfter = await ethers.provider.getBlockNumber();
+    console.log(blockNumAfter)
+
+    const tx2 = await EPQuestion.closeExpiredQuestion([questionId])
+    await tx2.wait()
 
   })
 
