@@ -4,25 +4,6 @@ const { BigNumber } = require("ethers")
 
 const ETH = BigNumber.from(10).pow(18)
 
-describe("EPToken Checklist", function () {
-
-  let EPToken;
-  const name = 'EPTOKEN'
-  const symbol = 'EPTOKEN'
-  const maxSupply = '100000000000000000'
-
-  before(async () => {
-    const EPTokenContract = await hre.ethers.getContractFactory("EPToken");
-    EPToken = await EPTokenContract.deploy(name, symbol, maxSupply);
-    await EPToken.deployed();
-  });
-
-  it("Max Supply match", async function () {
-    expect(await EPToken.name()).to.equal(name);
-  });
-
-});
-
 describe("EPQuestion Checklist", function () {
 
   let EPToken;

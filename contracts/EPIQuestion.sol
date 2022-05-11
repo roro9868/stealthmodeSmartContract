@@ -3,6 +3,7 @@
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "./EpInterface.sol";
 
 /*
@@ -56,115 +57,196 @@ E::::::::::::::::::::EP::::::::P          I::::::::IS:::::::::::::::SS       T::
 EEEEEEEEEEEEEEEEEEEEEEPPPPPPPPPP          IIIIIIIIII SSSSSSSSSSSSSSS         TTTTTTTTTTT      
 */
 
-contract EPQuestion is Ownable  {
+contract EPIQuestion is Ownable, Pausable  {
 
-    struct Question { 
+    struct Question {
         address owner;
+        address asset;
         bool active;
-        uint256 startBlock;
+        uint256 startTimestamp;
         uint256 expireAfter;
         uint256 delegateAmount;
     }
 
     mapping(string => Question) public questionsInfo;
 
-    uint256 public feePercent;
+    uint256 public communityFee;
     uint256 public stakingPercent;
-    uint256 public questionMinAmount;
-    uint256 public cumulatedFee;
 
-    address public stakingPool;
-    ERC20 private token;
+    mapping(address => uint256) public assetMinPrice;
+    mapping(address => uint256) public communityFeeMap;
 
-    constructor(
-        address _tokenAddress, 
-        address _stakePoolAddress,
-        uint256 _questionMinAmount,
-        uint256 _feePercent,
+    address public stakingFeeReceiver;
+
+    constructor( 
+        address _stakingFeeReceiver,
+        uint256 _communityFee,
         uint256 _stakingPercent
     ) {
-        token = ERC20(_tokenAddress);
-        stakingPool = _stakePoolAddress;
-        questionMinAmount = _questionMinAmount;
-        feePercent = _feePercent;
+        stakingFeeReceiver = _stakingFeeReceiver;
+        communityFee = _communityFee;
         stakingPercent = _stakingPercent;
     }
 
-    function adjustQuestionMinAmount(uint256 _questionMinAmount) public onlyOwner {
-       questionMinAmount = _questionMinAmount;
-       emit parameterAdjusted("questionMinAmount", _questionMinAmount);
+    function pause() external onlyOwner {
+        _pause();
     }
 
-    function adjustFeePercent(uint256 _feePercent) public onlyOwner {
-        feePercent = _feePercent;
-        emit parameterAdjusted("feePercent", feePercent);
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
-    function adjustStakingPercent(uint256 _stakingPercent) public onlyOwner {
+    function setAsset(address asset, uint256 amount) external onlyOwner {
+        assetMinPrice[asset] = amount;
+        emit RddAsset(asset, amount);
+    }
+
+    function removeAsset(address asset) external onlyOwner {
+        assetMinPrice[asset] = 0;
+        emit RemoveAsset(asset);
+    }
+
+    function isSupportedAsset(address asset) public view returns (bool) {
+        return assetMinPrice[asset] > 0;
+    }
+
+    function adjustCommunityFee(uint256 _communityFee) external onlyOwner {
+        communityFee = _communityFee;
+        emit parameterAdjusted("communityFee", communityFee);
+    }
+
+    function adjustStakingPercent(uint256 _stakingPercent) external onlyOwner {
         stakingPercent = _stakingPercent;
         emit parameterAdjusted("stakingPercent", stakingPercent);
     }
 
-    function withdrawTeamFee() public onlyOwner {
-        token.approve(address(this), cumulatedFee);
-        token.transferFrom(address(this), msg.sender, cumulatedFee);
-        cumulatedFee = 0;
+    function isNativeToken(address asset) internal pure returns (bool) {
+        return asset == address(0);
     }
 
-    function postQuestion(string memory id, uint256 amount, uint256 expireAfter) public {
-        require(token.balanceOf(msg.sender) >= amount, "Insufficnet amount to delegate");
-        require(amount >= questionMinAmount, "minimum question fee required");
-        require(questionsInfo[id].owner == address(0), "duplicate question id");
-        token.transferFrom(msg.sender, address(this), amount);
+    function recoverTokens(address[] memory assets) external onlyOwner {
+        for(uint i = 0; i < assets.length; i++) {
+            address asset = assets[i];
+            require(isSupportedAsset(asset), 'Asset not supported');
+            if(isNativeToken(asset)) {
+                payable(msg.sender).transfer(address(this).balance);
+            } else {
+                ERC20 token = ERC20(asset);
+                uint256 tokenBalance = token.balanceOf(address(this));
+                token.approve(address(this), tokenBalance);
+                token.transfer(msg.sender, tokenBalance);
+            }
+        }
+    }
+
+    function withdrawCommunityFee(address[] memory assets) external onlyOwner {
+        for(uint i = 0; i < assets.length; i++) {
+            address asset = assets[i];
+            require(isSupportedAsset(asset), 'Asset not supported');
+            if(isNativeToken(asset)) {
+                payable(msg.sender).transfer(communityFeeMap[asset]);
+            } else {
+                ERC20 token = ERC20(asset);
+                token.approve(address(this), communityFeeMap[asset]);
+                token.transfer(msg.sender, communityFeeMap[asset]);
+            }
+            communityFeeMap[asset] = 0;
+        }
+    }
+
+    function _createQuestion(address _asset, string memory id, uint256 amount, uint256 expireAfter) internal {
         questionsInfo[id].owner = msg.sender;
         questionsInfo[id].active = true;
         questionsInfo[id].delegateAmount = amount;
-        questionsInfo[id].startBlock = block.number;
+        questionsInfo[id].startTimestamp = block.timestamp;
         questionsInfo[id].expireAfter = expireAfter;
+        questionsInfo[id].asset = _asset;
         emit questionCreated(id, amount);
     }
 
-    function closeQuestion(string memory id, address[] memory account, uint256[] memory weight) public {
-        require(questionsInfo[id].owner == msg.sender, 'invalid question creator');
+
+    function postQuestion(address _asset, string memory id, uint256 amount, uint256 expireAfter) payable external whenNotPaused {
+
+        require(isSupportedAsset(_asset), 'Invalid asset');
+        require(questionsInfo[id].owner == address(0), "duplicate question id");
+        uint256 minPrice = assetMinPrice[_asset];
+
+        if(isNativeToken(_asset)) {
+            require(address(msg.sender).balance >= minPrice,  "Insufficient amount to delegate");
+            require(msg.value >= minPrice, "minimum question fee required");
+        } else {
+            require(ERC20(_asset).balanceOf(msg.sender) >= assetMinPrice[_asset], "Insufficient amount to delegate");
+            require(amount >= assetMinPrice[_asset], "minimum question fee required");
+            ERC20(_asset).transferFrom(msg.sender, address(this), amount);
+        }
+
+        _createQuestion(_asset, id, amount, expireAfter);
+
+    }
+
+    function isQuestionExpired(string memory id) public view returns (bool) {
+        return questionsInfo[id].startTimestamp + questionsInfo[id].expireAfter <= block.timestamp;
+    }
+
+    function closeQuestion(string memory id, address[] memory account, uint256[] memory weight) whenNotPaused public {
+
+        require(isQuestionExpired(id), 'Question not expired');
+        require(questionsInfo[id].owner == msg.sender || msg.sender == owner(), 'invalid question creator');
         require(questionsInfo[id].active, "Question closed");
+        address asset = questionsInfo[id].asset;
+
         questionsInfo[id].active = false;
         uint256 delegateAmount = questionsInfo[id].delegateAmount;
-        token.approve(address(this), delegateAmount);
-        uint256 teamFee = delegateAmount * feePercent / 100;
-        cumulatedFee += teamFee;
+        communityFeeMap[asset] += delegateAmount * communityFee / 100;
+    
         uint256 stakingReserved = delegateAmount * stakingPercent / 100;
-        uint256 rewardAmount = delegateAmount - teamFee - stakingReserved;
+        uint256 rewardAmount = delegateAmount - communityFee - stakingReserved;
         uint256 distributedReward = 0;
+
+        if(isNativeToken(asset)) {
+            payable(stakingFeeReceiver).transfer(stakingReserved);
+        } else {
+            ERC20(asset).approve(address(this), stakingReserved);
+            ERC20(asset).transfer(stakingFeeReceiver, stakingReserved);
+        }
+
         for(uint i = 0; i < account.length; i++) {
+
             require(weight[i] <= 100, "Invalid weight parameters");
             require(account[i] != msg.sender, "Owner cannot claim reward itself");
             uint256 userRewarded = rewardAmount * weight[i] / 100;
-            token.transferFrom(address(this), account[i], userRewarded);
+
+            if(isNativeToken(asset)) {
+                payable(account[i]).transfer(userRewarded);
+            } else {
+                ERC20(asset).approve(address(this), userRewarded);
+                ERC20(asset).transfer(account[i], userRewarded);
+            }
+
             distributedReward += userRewarded;
+
         }
+
         require(rewardAmount == distributedReward, "Rewards did not all distributed");
-        token.transferFrom(address(this), stakingPool, stakingReserved);
-        emit questionClosed(id);
+        emit questionClosed(id, account, weight);
+       
     }
 
     function closeExpiredQuestion(string[] memory ids) external onlyOwner {
+        address[] memory tempAddress = new address[](1);
+        tempAddress[0] = stakingFeeReceiver;
+        uint256[] memory tempWeight = new uint256[](1);
+        tempWeight[0] = 100;
         for(uint i = 0; i < ids.length; i++) {
-            string memory id = ids[i];
-            require(questionsInfo[id].active, "Question closed");
-            require(
-                questionsInfo[id].startBlock + questionsInfo[id].expireAfter <= block.number, 
-                'Question not expired yet'
-            );
-            questionsInfo[id].active = false;
-            token.approve(address(this), questionsInfo[id].delegateAmount);
-            token.transferFrom(address(this), stakingPool, questionsInfo[id].delegateAmount);
-            emit questionExpired(id);
+            closeQuestion(ids[i], tempAddress, tempWeight);
         }
     }
 
     event parameterAdjusted(string name, uint256 amount);
     event questionCreated(string id, uint256 amount);
-    event questionClosed(string id);
+    event questionClosed(string id, address[] account, uint256[] weight);
     event questionExpired(string id);
+    event RddAsset(address indexed asset, uint256 amount);
+    event RemoveAsset(address indexed asset);
 
 }
