@@ -5,6 +5,7 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./EpInterface.sol";
+import "hardhat/console.sol";
 
 /*
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -98,7 +99,7 @@ contract EPIQuestion is Ownable, Pausable  {
 
     function setAsset(address asset, uint256 amount) external onlyOwner {
         assetMinPrice[asset] = amount;
-        emit RddAsset(asset, amount);
+        emit SetAsset(asset, amount);
     }
 
     function removeAsset(address asset) external onlyOwner {
@@ -173,6 +174,7 @@ contract EPIQuestion is Ownable, Pausable  {
 
         if(isNativeToken(_asset)) {
             require(address(msg.sender).balance >= minPrice,  "Insufficient amount to delegate");
+            require(msg.value == amount, 'delegate amount should equal to msg.value');
             require(msg.value >= minPrice, "minimum question fee required");
         } else {
             require(ERC20(_asset).balanceOf(msg.sender) >= assetMinPrice[_asset], "Insufficient amount to delegate");
@@ -197,10 +199,11 @@ contract EPIQuestion is Ownable, Pausable  {
 
         questionsInfo[id].active = false;
         uint256 delegateAmount = questionsInfo[id].delegateAmount;
-        communityFeeMap[asset] += delegateAmount * communityFee / 100;
+        uint256 reservedFee = delegateAmount / 100 * communityFee;
+        communityFeeMap[asset] += reservedFee;
     
-        uint256 stakingReserved = delegateAmount * stakingPercent / 100;
-        uint256 rewardAmount = delegateAmount - communityFee - stakingReserved;
+        uint256 stakingReserved = delegateAmount / 100 * stakingPercent;
+        uint256 rewardAmount = delegateAmount - reservedFee - stakingReserved;
         uint256 distributedReward = 0;
 
         if(isNativeToken(asset)) {
@@ -210,11 +213,21 @@ contract EPIQuestion is Ownable, Pausable  {
             ERC20(asset).transfer(stakingFeeReceiver, stakingReserved);
         }
 
+        console.log('reward amount is');
+        console.log(rewardAmount);
+
         for(uint i = 0; i < account.length; i++) {
 
             require(weight[i] <= 100, "Invalid weight parameters");
             require(account[i] != msg.sender, "Owner cannot claim reward itself");
-            uint256 userRewarded = rewardAmount * weight[i] / 100;
+            uint256 userRewarded = rewardAmount / 100 * weight[i];
+
+            console.log('');
+            console.log('user reward');
+            console.log(userRewarded);
+            console.log('weight');
+            console.log(weight[i]);
+            console.log('');
 
             if(isNativeToken(asset)) {
                 payable(account[i]).transfer(userRewarded);
@@ -242,11 +255,15 @@ contract EPIQuestion is Ownable, Pausable  {
         }
     }
 
+    function receive() external payable {}
+
+    fallback() external payable {}
+
     event parameterAdjusted(string name, uint256 amount);
     event questionCreated(string id, uint256 amount);
     event questionClosed(string id, address[] account, uint256[] weight);
     event questionExpired(string id);
-    event RddAsset(address indexed asset, uint256 amount);
+    event SetAsset(address indexed asset, uint256 amount);
     event RemoveAsset(address indexed asset);
 
 }
