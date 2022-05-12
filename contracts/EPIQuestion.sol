@@ -4,7 +4,7 @@ pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./EpInterface.sol";
+import "./EPIInterface.sol";
 
 /*
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -143,8 +143,7 @@ contract EPIQuestion is Ownable, Pausable  {
             if(isNativeToken(asset)) {
                 payable(msg.sender).transfer(communityFeeMap[asset]);
             } else {
-                ERC20 token = ERC20(asset);
-                token.transfer(msg.sender, communityFeeMap[asset]);
+                ERC20(asset).transfer(msg.sender, communityFeeMap[asset]);
             }
             communityFeeMap[asset] = 0;
         }
@@ -157,7 +156,7 @@ contract EPIQuestion is Ownable, Pausable  {
         questionsInfo[_id].startTimestamp = block.timestamp;
         questionsInfo[_id].expireAfterSecs = _expireAfterSecs;
         questionsInfo[_id].asset = _asset;
-        emit questionCreated(_asset, _id, _amount, _expireAfterSecs);
+        emit questionCreated(questionsInfo[_id]);
     }
 
 
@@ -224,8 +223,7 @@ contract EPIQuestion is Ownable, Pausable  {
         }
 
         require(rewardAmount == distributedReward, "Rewards did not all distributed");
-        emit questionClosed(_id, _accounts, _weights);
-       
+        emit questionClosed(_id, reservedFee, stakingReserved, _accounts, _weights);
     }
 
     function closeExpiredQuestion(string[] memory ids) external onlyOwner {
@@ -238,14 +236,13 @@ contract EPIQuestion is Ownable, Pausable  {
         }
     }
 
-    function receive() external payable {}
+    receive() external payable {}
 
     fallback() external payable {}
 
     event parameterAdjusted(string name, uint256 amount);
-    event questionCreated(address indexed_asset, string id, uint256 amount, uint256 expireAfter);
-    event questionClosed(string id, address[] account, uint256[] weight);
-    event questionExpired(string id);
+    event questionCreated(Question question);
+    event questionClosed(string id, uint256 reservedFee, uint256 stakingReserved, address[] account, uint256[] weight);
     event SetAsset(address indexed asset, uint256 amount);
     event RemoveAsset(address indexed asset);
 
