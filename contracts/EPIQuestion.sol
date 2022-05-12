@@ -60,31 +60,29 @@ EEEEEEEEEEEEEEEEEEEEEEPPPPPPPPPP          IIIIIIIIII SSSSSSSSSSSSSSS         TTT
 contract EPIQuestion is Ownable, Pausable  {
 
     struct Question {
-        address owner;
+        address creator;
         address asset;
-        bool active;
+        bool notClosed;
         uint256 startTimestamp;
-        uint256 expireAfter;
+        uint256 expireAfterSecs;
         uint256 delegateAmount;
     }
 
     mapping(string => Question) public questionsInfo;
-
-    uint256 public communityFee;
-    uint256 public stakingPercent;
-
     mapping(address => uint256) public assetMinPrice;
     mapping(address => uint256) public communityFeeMap;
 
+    uint256 public communityPercent;
+    uint256 public stakingPercent;
     address public stakingFeeReceiver;
 
     constructor( 
         address _stakingFeeReceiver,
-        uint256 _communityFee,
+        uint256 _communityPercent,
         uint256 _stakingPercent
     ) {
         stakingFeeReceiver = _stakingFeeReceiver;
-        communityFee = _communityFee;
+        communityPercent = _communityPercent;
         stakingPercent = _stakingPercent;
     }
 
@@ -96,23 +94,23 @@ contract EPIQuestion is Ownable, Pausable  {
         _unpause();
     }
 
-    function setAsset(address asset, uint256 amount) external onlyOwner {
-        assetMinPrice[asset] = amount;
-        emit SetAsset(asset, amount);
+    function setAsset(address _asset, uint256 _amount) external onlyOwner {
+        assetMinPrice[_asset] = _amount;
+        emit SetAsset(_asset, _amount);
     }
 
-    function removeAsset(address asset) external onlyOwner {
-        delete assetMinPrice[asset];
-        emit RemoveAsset(asset);
+    function removeAsset(address _asset) external onlyOwner {
+        delete assetMinPrice[_asset];
+        emit RemoveAsset(_asset);
     }
 
-    function isSupportedAsset(address asset) public view returns (bool) {
-        return assetMinPrice[asset] > 0;
+    function isSupportedAsset(address _asset) public view returns (bool) {
+        return assetMinPrice[_asset] > 0;
     }
 
-    function adjustCommunityFee(uint256 _communityFee) external onlyOwner {
-        communityFee = _communityFee;
-        emit parameterAdjusted("communityFee", communityFee);
+    function adjustCommunityPercent(uint256 _communityPercent) external onlyOwner {
+        communityPercent = _communityPercent;
+        emit parameterAdjusted("communityPercent", communityPercent);
     }
 
     function adjustStakingPercent(uint256 _stakingPercent) external onlyOwner {
@@ -120,13 +118,13 @@ contract EPIQuestion is Ownable, Pausable  {
         emit parameterAdjusted("stakingPercent", stakingPercent);
     }
 
-    function isNativeToken(address asset) internal pure returns (bool) {
-        return asset == address(0);
+    function isNativeToken(address _asset) internal pure returns (bool) {
+        return _asset == address(0);
     }
 
-    function recoverTokens(address[] memory assets) external onlyOwner {
-        for(uint i = 0; i < assets.length; i++) {
-            address asset = assets[i];
+    function recoverTokens(address[] memory _assets) external onlyOwner {
+        for(uint i = 0; i < _assets.length; i++) {
+            address asset = _assets[i];
             require(isSupportedAsset(asset), 'Asset not supported');
             if(isNativeToken(asset)) {
                 payable(msg.sender).transfer(address(this).balance);
@@ -138,9 +136,9 @@ contract EPIQuestion is Ownable, Pausable  {
         }
     }
 
-    function withdrawCommunityFee(address[] memory assets) external onlyOwner {
-        for(uint i = 0; i < assets.length; i++) {
-            address asset = assets[i];
+    function withdrawCommunityFee(address[] memory _assets) external onlyOwner {
+        for(uint i = 0; i < _assets.length; i++) {
+            address asset = _assets[i];
             require(isSupportedAsset(asset), 'Asset not supported');
             if(isNativeToken(asset)) {
                 payable(msg.sender).transfer(communityFeeMap[asset]);
@@ -152,51 +150,51 @@ contract EPIQuestion is Ownable, Pausable  {
         }
     }
 
-    function _createQuestion(address _asset, string memory id, uint256 amount, uint256 expireAfter) internal {
-        questionsInfo[id].owner = msg.sender;
-        questionsInfo[id].active = true;
-        questionsInfo[id].delegateAmount = amount;
-        questionsInfo[id].startTimestamp = block.timestamp;
-        questionsInfo[id].expireAfter = expireAfter;
-        questionsInfo[id].asset = _asset;
-        emit questionCreated(_asset, id, amount, expireAfter);
+    function _createQuestion(address _asset, string memory _id, uint256 _amount, uint256 _expireAfterSecs) internal {
+        questionsInfo[_id].creator = msg.sender;
+        questionsInfo[_id].notClosed = true;
+        questionsInfo[_id].delegateAmount = _amount;
+        questionsInfo[_id].startTimestamp = block.timestamp;
+        questionsInfo[_id].expireAfterSecs = _expireAfterSecs;
+        questionsInfo[_id].asset = _asset;
+        emit questionCreated(_asset, _id, _amount, _expireAfterSecs);
     }
 
 
-    function postQuestion(address _asset, string memory id, uint256 amount, uint256 expireAfter) payable external whenNotPaused {
+    function postQuestion(address _asset, string memory _id, uint256 _amount, uint256 expireAfterSecs) payable external whenNotPaused {
 
         require(isSupportedAsset(_asset), 'Invalid asset');
-        require(questionsInfo[id].owner == address(0), "duplicate question id");
+        require(questionsInfo[_id].creator == address(0), "duplicate question ID");
         uint256 minPrice = assetMinPrice[_asset];
 
         if(isNativeToken(_asset)) {
             require(address(msg.sender).balance >= minPrice,  "Insufficient amount to delegate");
-            require(msg.value == amount, 'delegate amount should equal to msg.value');
-            require(msg.value >= minPrice, "minimum question fee required");
+            require(msg.value == _amount, 'Delegate amount should equal to msg.value');
+            require(msg.value >= minPrice, "Minimum question fee required");
         } else {
             require(ERC20(_asset).balanceOf(msg.sender) >= assetMinPrice[_asset], "Insufficient amount to delegate");
-            require(amount >= assetMinPrice[_asset], "minimum question fee required");
-            ERC20(_asset).transferFrom(msg.sender, address(this), amount);
+            require(_amount >= assetMinPrice[_asset], "Minimum question fee required");
+            ERC20(_asset).transferFrom(msg.sender, address(this), _amount);
         }
 
-        _createQuestion(_asset, id, amount, expireAfter);
+        _createQuestion(_asset, _id, _amount, expireAfterSecs);
 
     }
 
-    function isQuestionExpired(string memory id) public view returns (bool) {
-        return questionsInfo[id].startTimestamp + questionsInfo[id].expireAfter <= block.timestamp;
+    function isQuestionExpired(string memory _id) public view returns (bool) {
+        return questionsInfo[_id].startTimestamp + questionsInfo[_id].expireAfterSecs <= block.timestamp;
     }
 
-    function closeQuestion(string memory id, address[] memory account, uint256[] memory weight) whenNotPaused public {
+    function closeQuestion(string memory _id, address[] memory _accounts, uint256[] memory _weights) whenNotPaused public {
 
-        require(isQuestionExpired(id), 'Question not expired');
-        require(questionsInfo[id].owner == msg.sender || msg.sender == owner(), 'invalid question creator');
-        require(questionsInfo[id].active, "Question closed");
-        address asset = questionsInfo[id].asset;
+        require(isQuestionExpired(_id), 'Question not expired');
+        require(questionsInfo[_id].creator == msg.sender || msg.sender == owner(), 'msg.sender not authorized to close this question');
+        require(questionsInfo[_id].notClosed, "Question closed");
+        address asset = questionsInfo[_id].asset;
 
-        questionsInfo[id].active = false;
-        uint256 delegateAmount = questionsInfo[id].delegateAmount;
-        uint256 reservedFee = delegateAmount / 100 * communityFee;
+        questionsInfo[_id].notClosed = false;
+        uint256 delegateAmount = questionsInfo[_id].delegateAmount;
+        uint256 reservedFee = delegateAmount / 100 * communityPercent;
         communityFeeMap[asset] += reservedFee;
     
         uint256 stakingReserved = delegateAmount / 100 * stakingPercent;
@@ -209,16 +207,16 @@ contract EPIQuestion is Ownable, Pausable  {
             ERC20(asset).transfer(stakingFeeReceiver, stakingReserved);
         }
 
-        for(uint i = 0; i < account.length; i++) {
+        for(uint i = 0; i < _accounts.length; i++) {
 
-            require(weight[i] <= 100, "Invalid weight parameters");
-            require(account[i] != msg.sender, "Owner cannot claim reward itself");
-            uint256 userRewarded = rewardAmount / 100 * weight[i];
+            require(_weights[i] <= 100, "Invalid weight parameters");
+            require(_accounts[i] != msg.sender, "Question creator cannot claim reward itself");
+            uint256 userRewarded = rewardAmount / 100 * _weights[i];
 
             if(isNativeToken(asset)) {
-                payable(account[i]).transfer(userRewarded);
+                payable(_accounts[i]).transfer(userRewarded);
             } else {
-                ERC20(asset).transfer(account[i], userRewarded);
+                ERC20(asset).transfer(_accounts[i], userRewarded);
             }
 
             distributedReward += userRewarded;
@@ -226,7 +224,7 @@ contract EPIQuestion is Ownable, Pausable  {
         }
 
         require(rewardAmount == distributedReward, "Rewards did not all distributed");
-        emit questionClosed(id, account, weight);
+        emit questionClosed(_id, _accounts, _weights);
        
     }
 
