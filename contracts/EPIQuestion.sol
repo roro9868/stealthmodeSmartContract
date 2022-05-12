@@ -159,7 +159,7 @@ contract EPIQuestion is Ownable, Pausable  {
         questionsInfo[id].startTimestamp = block.timestamp;
         questionsInfo[id].expireAfter = expireAfter;
         questionsInfo[id].asset = _asset;
-        emit questionCreated(id, amount);
+        emit questionCreated(_asset, id, amount, expireAfter);
     }
 
 
@@ -209,9 +209,6 @@ contract EPIQuestion is Ownable, Pausable  {
             ERC20(asset).transfer(stakingFeeReceiver, stakingReserved);
         }
 
-        console.log('reward amount is');
-        console.log(rewardAmount);
-
         for(uint i = 0; i < account.length; i++) {
 
             require(weight[i] <= 100, "Invalid weight parameters");
@@ -248,7 +245,7 @@ contract EPIQuestion is Ownable, Pausable  {
     fallback() external payable {}
 
     event parameterAdjusted(string name, uint256 amount);
-    event questionCreated(string id, uint256 amount);
+    event questionCreated(address indexed_asset, string id, uint256 amount, uint256 expireAfter);
     event questionClosed(string id, address[] account, uint256[] weight);
     event questionExpired(string id);
     event SetAsset(address indexed asset, uint256 amount);
