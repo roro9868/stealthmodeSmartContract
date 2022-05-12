@@ -5,7 +5,6 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./EpInterface.sol";
-import "hardhat/console.sol";
 
 /*
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -101,7 +100,7 @@ contract EPIQuestion is Ownable, Pausable  {
     }
 
     function removeAsset(address _asset) external onlyOwner {
-        assetMinPrice[_asset] = 0;
+        delete assetMinPrice[_asset];
         emit RemoveAsset(_asset);
     }
 
@@ -132,7 +131,6 @@ contract EPIQuestion is Ownable, Pausable  {
             } else {
                 ERC20 token = ERC20(asset);
                 uint256 tokenBalance = token.balanceOf(address(this));
-                token.approve(address(this), tokenBalance);
                 token.transfer(msg.sender, tokenBalance);
             }
         }
@@ -146,7 +144,6 @@ contract EPIQuestion is Ownable, Pausable  {
                 payable(msg.sender).transfer(communityFeeMap[asset]);
             } else {
                 ERC20 token = ERC20(asset);
-                token.approve(address(this), communityFeeMap[asset]);
                 token.transfer(msg.sender, communityFeeMap[asset]);
             }
             communityFeeMap[asset] = 0;
@@ -160,7 +157,7 @@ contract EPIQuestion is Ownable, Pausable  {
         questionsInfo[_id].startTimestamp = block.timestamp;
         questionsInfo[_id].expireAfterSecs = _expireAfterSecs;
         questionsInfo[_id].asset = _asset;
-        emit questionCreated(_id, _amount);
+        emit questionCreated(_asset, _id, _amount, _expireAfterSecs);
     }
 
 
@@ -207,12 +204,8 @@ contract EPIQuestion is Ownable, Pausable  {
         if(isNativeToken(asset)) {
             payable(stakingFeeReceiver).transfer(stakingReserved);
         } else {
-            ERC20(asset).approve(address(this), stakingReserved);
             ERC20(asset).transfer(stakingFeeReceiver, stakingReserved);
         }
-
-        console.log('reward amount is');
-        console.log(rewardAmount);
 
         for(uint i = 0; i < _accounts.length; i++) {
 
@@ -220,17 +213,9 @@ contract EPIQuestion is Ownable, Pausable  {
             require(_accounts[i] != msg.sender, "Question creator cannot claim reward itself");
             uint256 userRewarded = rewardAmount / 100 * _weights[i];
 
-            console.log('');
-            console.log('user reward');
-            console.log(userRewarded);
-            console.log('weight');
-            console.log(_weights[i]);
-            console.log('');
-
             if(isNativeToken(asset)) {
                 payable(_accounts[i]).transfer(userRewarded);
             } else {
-                ERC20(asset).approve(address(this), userRewarded);
                 ERC20(asset).transfer(_accounts[i], userRewarded);
             }
 
@@ -258,7 +243,7 @@ contract EPIQuestion is Ownable, Pausable  {
     fallback() external payable {}
 
     event parameterAdjusted(string name, uint256 amount);
-    event questionCreated(string id, uint256 amount);
+    event questionCreated(address indexed_asset, string id, uint256 amount, uint256 expireAfter);
     event questionClosed(string id, address[] account, uint256[] weight);
     event questionExpired(string id);
     event SetAsset(address indexed asset, uint256 amount);
