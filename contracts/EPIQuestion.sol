@@ -5,7 +5,6 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./EpInterface.sol";
-import "hardhat/console.sol";
 
 /*
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(((((@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -103,7 +102,7 @@ contract EPIQuestion is Ownable, Pausable  {
     }
 
     function removeAsset(address asset) external onlyOwner {
-        assetMinPrice[asset] = 0;
+        delete assetMinPrice[asset];
         emit RemoveAsset(asset);
     }
 
@@ -134,7 +133,6 @@ contract EPIQuestion is Ownable, Pausable  {
             } else {
                 ERC20 token = ERC20(asset);
                 uint256 tokenBalance = token.balanceOf(address(this));
-                token.approve(address(this), tokenBalance);
                 token.transfer(msg.sender, tokenBalance);
             }
         }
@@ -148,7 +146,6 @@ contract EPIQuestion is Ownable, Pausable  {
                 payable(msg.sender).transfer(communityFeeMap[asset]);
             } else {
                 ERC20 token = ERC20(asset);
-                token.approve(address(this), communityFeeMap[asset]);
                 token.transfer(msg.sender, communityFeeMap[asset]);
             }
             communityFeeMap[asset] = 0;
@@ -209,7 +206,6 @@ contract EPIQuestion is Ownable, Pausable  {
         if(isNativeToken(asset)) {
             payable(stakingFeeReceiver).transfer(stakingReserved);
         } else {
-            ERC20(asset).approve(address(this), stakingReserved);
             ERC20(asset).transfer(stakingFeeReceiver, stakingReserved);
         }
 
@@ -222,17 +218,9 @@ contract EPIQuestion is Ownable, Pausable  {
             require(account[i] != msg.sender, "Owner cannot claim reward itself");
             uint256 userRewarded = rewardAmount / 100 * weight[i];
 
-            console.log('');
-            console.log('user reward');
-            console.log(userRewarded);
-            console.log('weight');
-            console.log(weight[i]);
-            console.log('');
-
             if(isNativeToken(asset)) {
                 payable(account[i]).transfer(userRewarded);
             } else {
-                ERC20(asset).approve(address(this), userRewarded);
                 ERC20(asset).transfer(account[i], userRewarded);
             }
 

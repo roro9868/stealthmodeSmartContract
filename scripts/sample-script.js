@@ -25,18 +25,14 @@ async function main() {
   // await EPToken.deployed();
   // console.log("EPToken contract deployed to:", EPToken.address);
 
-  const EPToken = '0x5742717916b30B223FD8b7A9d1b99c8074859848'
-  const stakingPoolAddress = '0xE17994c9bc4Db9fd53401c9eF5e3ecd41FFbFe5a'
-  const questionMinAmount = ETH;
-  const feePercent = 3;
+  const stakingFeeReceiver = '0x6b7E51800CDEc044fF1185Eff6d329E2Ca87716C'
+  const communityFee = 3;
   const stakingPercent = 3;
-  const EPQuestionContract = await hre.ethers.getContractFactory("EPQuestion");
+  const EPQuestionContract = await hre.ethers.getContractFactory("EPIQuestion");
   const EPQuestion = await EPQuestionContract.deploy(
-    EPToken, 
-    stakingPoolAddress,
-    questionMinAmount,
-    feePercent,
-    stakingPercent,
+    stakingFeeReceiver,
+    communityFee,
+    stakingPercent
   )
   await EPQuestion.deployed()
   console.log("EPQuestion contract deployed to:", EPQuestion.address);
