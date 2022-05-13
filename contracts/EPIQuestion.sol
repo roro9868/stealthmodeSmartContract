@@ -94,6 +94,10 @@ contract EPIQuestion is Ownable, Pausable  {
         _unpause();
     }
 
+    function setstakingFeeReceiver(address _receiverAddress) external onlyOwner {
+        stakingFeeReceiver = _receiverAddress;
+    }
+
     function setAsset(address _asset, uint256 _amount) external onlyOwner {
         assetMinPrice[_asset] = _amount;
         emit SetAsset(_asset, _amount);
@@ -171,6 +175,7 @@ contract EPIQuestion is Ownable, Pausable  {
             require(msg.value == _amount, 'Delegate amount should equal to msg.value');
             require(msg.value >= minPrice, "Minimum question fee required");
         } else {
+            require(msg.value == 0, 'Should not transfer native token when ERC20 token is selected');
             require(ERC20(_asset).balanceOf(msg.sender) >= assetMinPrice[_asset], "Insufficient amount to delegate");
             require(_amount >= assetMinPrice[_asset], "Minimum question fee required");
             ERC20(_asset).transferFrom(msg.sender, address(this), _amount);
