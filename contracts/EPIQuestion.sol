@@ -210,6 +210,8 @@ contract EPIQuestion is Ownable, Pausable  {
             ERC20(asset).transfer(stakingFeeReceiver, stakingReserved);
         }
 
+        address[] memory rewardAmounts = new address[](_weights.length);
+
         for(uint i = 0; i < _accounts.length; i++) {
 
             require(_weights[i] <= 100, "Invalid weight parameters");
@@ -222,12 +224,14 @@ contract EPIQuestion is Ownable, Pausable  {
                 ERC20(asset).transfer(_accounts[i], userRewarded);
             }
 
+            rewardAmounts[i] = userRewarded;
             distributedReward += userRewarded;
 
         }
 
         require(rewardAmount == distributedReward, "Rewards did not all distributed");
-        emit questionClosed(_id, reservedFee, stakingReserved, _accounts, _weights);
+        emit questionClosed(_id, reservedFee, stakingReserved, _accounts, amounts);
+
     }
 
     function closeExpiredQuestion(string[] memory ids) external onlyOwner {
