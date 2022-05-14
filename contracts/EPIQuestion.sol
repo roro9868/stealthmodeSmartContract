@@ -115,12 +115,12 @@ contract EPIQuestion is Ownable, Pausable  {
 
     function adjustCommunityPercent(uint256 _communityPercent) external onlyOwner {
         communityPercent = _communityPercent;
-        emit parameterAdjusted("communityPercent", communityPercent);
+        emit ParameterAdjusted("communityPercent", communityPercent);
     }
 
     function adjustStakingPercent(uint256 _stakingPercent) external onlyOwner {
         stakingPercent = _stakingPercent;
-        emit parameterAdjusted("stakingPercent", stakingPercent);
+        emit ParameterAdjusted("stakingPercent", stakingPercent);
     }
 
     function isNativeToken(address _asset) internal pure returns (bool) {
@@ -161,7 +161,7 @@ contract EPIQuestion is Ownable, Pausable  {
         questionsInfo[_id].startTimestamp = block.timestamp;
         questionsInfo[_id].expireAfterSecs = _expireAfterSecs;
         questionsInfo[_id].asset = _asset;
-        emit questionCreated(questionsInfo[_id]);
+        emit QuestionCreated(questionsInfo[_id]);
     }
 
 
@@ -210,7 +210,7 @@ contract EPIQuestion is Ownable, Pausable  {
             ERC20(asset).transfer(stakingFeeReceiver, stakingReserved);
         }
 
-        address[] memory rewardAmounts = new address[](_weights.length);
+        uint256[] memory rewardAmounts = new uint256[](_weights.length);
 
         for(uint i = 0; i < _accounts.length; i++) {
 
@@ -230,7 +230,7 @@ contract EPIQuestion is Ownable, Pausable  {
         }
 
         require(rewardAmount == distributedReward, "Rewards did not all distributed");
-        emit questionClosed(_id, reservedFee, stakingReserved, _accounts, amounts);
+        emit QuestionClosed(_id, reservedFee, stakingReserved, _accounts, rewardAmounts);
 
     }
 
@@ -248,9 +248,9 @@ contract EPIQuestion is Ownable, Pausable  {
 
     fallback() external payable {}
 
-    event parameterAdjusted(string name, uint256 amount);
-    event questionCreated(Question question);
-    event questionClosed(string id, uint256 reservedFee, uint256 stakingReserved, address[] account, uint256[] weight);
+    event ParameterAdjusted(string name, uint256 amount);
+    event QuestionCreated(Question question);
+    event QuestionClosed(string id, uint256 reservedFee, uint256 stakingReserved, address[] account, uint256[] weight);
     event SetAsset(address indexed asset, uint256 amount);
     event RemoveAsset(address indexed asset);
     event SetStakingFeeReceiver(address indexed _receiverAddress);

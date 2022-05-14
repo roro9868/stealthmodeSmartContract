@@ -274,4 +274,39 @@ describe("EPQuestion Checklist", function () {
 
   })
 
+  it('close all questions', async function() {
+
+    const tx1 = await EPQuestion.postQuestion(
+      ZERO_ADDRESS, 
+      '10',
+      ETH, 
+      1,
+      {value: ETH}
+    )
+
+    tx1.wait()
+
+    const tx2 = await EPQuestion.postQuestion(
+      ZERO_ADDRESS, 
+      '11',
+      ETH, 
+      1,
+      {value: ETH}
+    )
+
+
+    tx2.wait()
+
+    let tx3 = await EPQuestion.closeExpiredQuestion([
+      '10', '11'
+    ])
+  
+    tx3.wait()
+
+    EPQuestion.closeExpiredQuestion([
+      '10', '11'
+    ]).to.be.revertedWith('Question closed')
+  
+  })
+
 })
