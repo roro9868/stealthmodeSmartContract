@@ -11,7 +11,7 @@ describe("EPQuestion Checklist", function () {
   let EPQuestion;
 
   let stakingFeeReceiver = "";
-  const communityFee = 3;
+  const communityPercent = 3;
   const stakingPercent = 3;
 
   before(async () => {
@@ -27,7 +27,7 @@ describe("EPQuestion Checklist", function () {
   
     EPQuestion = await EPQusetionContract.deploy(
       stakingFeeReceiver,
-      communityFee,
+      communityPercent,
       stakingPercent
     )
     await EPQuestion.deployed()
@@ -41,7 +41,7 @@ describe("EPQuestion Checklist", function () {
   });
 
   it("correct parameter for EQQuestion", async function () {
-    expect(await EPQuestion.communityFee()).to.equal(communityFee);
+    expect(await EPQuestion.communityPercent()).to.equal(communityPercent);
     expect(await EPQuestion.stakingPercent()).to.equal(stakingPercent); 
     expect(await EPQuestion.stakingFeeReceiver()).to.equal(stakingFeeReceiver);  
   });
@@ -123,7 +123,7 @@ describe("EPQuestion Checklist", function () {
     let contractTokenBalance = await token.balanceOf(EPQuestion.address);
     expect(contractTokenBalance).to.equal(ETH.mul(3))
 
-    const tx2 = await EPQuestion.receive({value: ETH})
+    const tx2 = await owner.sendTransaction({to: EPQuestion.address, value: ETH})
     tx2.wait()
 
     let contractBalance = await owner.provider.getBalance(EPQuestion.address)
@@ -161,7 +161,7 @@ describe("EPQuestion Checklist", function () {
     const questionId = '1'
     const emptyQuestionInfo = await EPQuestion.questionsInfo(questionId)
     const emptyAddress = '0x0000000000000000000000000000000000000000'
-    expect(emptyQuestionInfo.owner).to.equal(emptyAddress);
+    expect(emptyQuestionInfo.creator).to.equal(emptyAddress);
 
     // create a question
     const [owner] = await ethers.getSigners()
@@ -176,20 +176,20 @@ describe("EPQuestion Checklist", function () {
     expect(balanceBefore.sub(balanceAfter)).to.equal(bountyAmonut)
 
     const createdQuestionInfo = await EPQuestion.questionsInfo(questionId)
-    expect(createdQuestionInfo.owner).to.equal(owner.address);
-    expect(createdQuestionInfo.active).to.equal(true);
+    expect(createdQuestionInfo.creator).to.equal(owner.address);
+    expect(createdQuestionInfo.notClosed).to.equal(true);
     expect(createdQuestionInfo.delegateAmount).to.equal(bountyAmonut);
     expect(createdQuestionInfo.asset).to.equal(token.address);
 
     // create duplicate question id is not allowed
     await expect(
       EPQuestion.postQuestion(token.address, questionId, bountyAmonut, expireAfter)
-    ).to.be.revertedWith("duplicate question id");
+    ).to.be.revertedWith("duplicate question ID");
 
-    // // create duplicate question with insufficient min amount
+    // // // create duplicate question with insufficient min amount
     await expect(
       EPQuestion.postQuestion(token.address, '2', ETH.div(10), expireAfter)
-    ).to.be.revertedWith("minimum question fee required");
+    ).to.be.revertedWith("Minimum question fee required");
 
   })
 
@@ -199,7 +199,7 @@ describe("EPQuestion Checklist", function () {
     const questionId = '2'
     const emptyQuestionInfo = await EPQuestion.questionsInfo(questionId)
     const emptyAddress = '0x0000000000000000000000000000000000000000'
-    expect(emptyQuestionInfo.owner).to.equal(emptyAddress);
+    expect(emptyQuestionInfo.creator).to.equal(emptyAddress);
 
     // create a question
     const [owner] = await ethers.getSigners()
@@ -217,40 +217,27 @@ describe("EPQuestion Checklist", function () {
     tx1.wait()
     const balanceAfter = await owner.provider.getBalance(owner.address)
     console.log('create question balance after', balanceAfter)
+  
     // expect(balanceBefore.sub(balanceAfter)).to.equal(bountyAmonut)
 
     const createdQuestionInfo = await EPQuestion.questionsInfo(questionId)
-    expect(createdQuestionInfo.owner).to.equal(owner.address);
-    expect(createdQuestionInfo.active).to.equal(true);
+    expect(createdQuestionInfo.creator).to.equal(owner.address);
+    expect(createdQuestionInfo.notClosed).to.equal(true);
     expect(createdQuestionInfo.delegateAmount).to.equal(bountyAmonut);
     expect(createdQuestionInfo.asset).to.equal(ZERO_ADDRESS);
 
-    // create duplicate question id is not allowed
+    // // create duplicate question id is not allowed
     await expect(
-      EPQuestion.postQuestion(ZERO_ADDRESS, questionId, bountyAmonut, expireAfter, {value: bountyAmonut})
-    ).to.be.revertedWith("duplicate question id");
+      EPQuestion.postQuestion(token.address, questionId, bountyAmonut, expireAfter)
+    ).to.be.revertedWith("duplicate question ID");
 
-    // create duplicate question with insufficient min amount
-    await expect(
-      EPQuestion.postQuestion(token.address, '3', 0, expireAfter)
-    ).to.be.revertedWith("minimum question fee required");
+    // // create duplicate question with insufficient min amount
+    // await expect(
+    //   EPQuestion.postQuestion(token.address, '3', 0, expireAfter)
+    // ).to.be.revertedWith("minimum question fee required");
 
   })
 
-  // it("adjust parameter for EQQuestion", async function () {
-  //   const newFeePercent = 4
-  //   const newStakingFeePercent = 4
-  //   const newQuestionMintAmount = ETH.mul(2)
-  //   const tx1 = await EPQuestion.adjustFeePercent(newFeePercent);
-  //   await tx1.wait()
-  //   expect(await EPQuestion.feePercent()).to.equal(newFeePercent);
-  //   const tx2 = await EPQuestion.adjustStakingPercent(newStakingFeePercent);
-  //   await tx2.wait()
-  //   expect(await EPQuestion.stakingPercent()).to.equal(newStakingFeePercent);
-  //   const tx3 = await EPQuestion.adjustQuestionMinAmount(newQuestionMintAmount);
-  //   expect(await EPQuestion.questionMinAmount()).to.equal(newQuestionMintAmount);
-  //   await tx3.wait()
-  // });
 
   it('close question for EQQuestion', async function() { 
 
@@ -285,6 +272,41 @@ describe("EPQuestion Checklist", function () {
     console.log('token fee after', nativeTokenFee.toString())
     console.log('ERC20 token fee after', tokenFee.toString())
 
+  })
+
+  it('close all questions', async function() {
+
+    const tx1 = await EPQuestion.postQuestion(
+      ZERO_ADDRESS, 
+      '10',
+      ETH, 
+      1,
+      {value: ETH}
+    )
+
+    tx1.wait()
+
+    const tx2 = await EPQuestion.postQuestion(
+      ZERO_ADDRESS, 
+      '11',
+      ETH, 
+      1,
+      {value: ETH}
+    )
+
+
+    tx2.wait()
+
+    let tx3 = await EPQuestion.closeExpiredQuestion([
+      '10', '11'
+    ])
+  
+    tx3.wait()
+
+    EPQuestion.closeExpiredQuestion([
+      '10', '11'
+    ]).to.be.revertedWith('Question closed')
+  
   })
 
 })

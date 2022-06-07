@@ -1,1 +1,0 @@
-console.log(process.env.ETHEREUM_SCAN_API)

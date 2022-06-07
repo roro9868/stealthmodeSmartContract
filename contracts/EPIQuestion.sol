@@ -95,8 +95,9 @@ contract EPIQuestion is Ownable, Pausable  {
         _unpause();
     }
 
-    function setstakingFeeReceiver(address _receiverAddress) external onlyOwner {
+    function setStakingFeeReceiver(address _receiverAddress) external onlyOwner {
         stakingFeeReceiver = _receiverAddress;
+        emit SetStakingFeeReceiver(_receiverAddress);
     }
 
     function setAsset(address _asset, uint256 _amount) external onlyOwner {
@@ -115,12 +116,12 @@ contract EPIQuestion is Ownable, Pausable  {
 
     function adjustCommunityPercent(uint256 _communityPercent) external onlyOwner {
         communityPercent = _communityPercent;
-        emit parameterAdjusted("communityPercent", communityPercent);
+        emit ParameterAdjusted("communityPercent", communityPercent);
     }
 
     function adjustStakingPercent(uint256 _stakingPercent) external onlyOwner {
         stakingPercent = _stakingPercent;
-        emit parameterAdjusted("stakingPercent", stakingPercent);
+        emit ParameterAdjusted("stakingPercent", stakingPercent);
     }
 
     function isNativeToken(address _asset) internal pure returns (bool) {
@@ -162,7 +163,7 @@ contract EPIQuestion is Ownable, Pausable  {
         questionsInfo[_id].expireAfterSecs = _expireAfterSecs;
         questionsInfo[_id].asset = _asset;
         questionsInfo[_id].tag = _tag;
-        emit questionCreated(questionsInfo[_id]);
+        emit QuestionCreated(questionsInfo[_id]);
     }
 
 
@@ -173,13 +174,11 @@ contract EPIQuestion is Ownable, Pausable  {
         uint256 minPrice = assetMinPrice[_asset];
 
         if(isNativeToken(_asset)) {
-            require(address(msg.sender).balance >= minPrice,  "Insufficient amount to delegate");
             require(msg.value == _amount, 'Delegate amount should equal to msg.value');
             require(msg.value >= minPrice, "Minimum question fee required");
         } else {
             require(msg.value == 0, 'Should not transfer native token when ERC20 token is selected');
-            require(ERC20(_asset).balanceOf(msg.sender) >= assetMinPrice[_asset], "Insufficient amount to delegate");
-            require(_amount >= assetMinPrice[_asset], "Minimum question fee required");
+            require(_amount >=  minPrice, "Minimum question fee required");
             ERC20(_asset).transferFrom(msg.sender, address(this), _amount);
         }
 
@@ -213,6 +212,8 @@ contract EPIQuestion is Ownable, Pausable  {
             ERC20(asset).transfer(stakingFeeReceiver, stakingReserved);
         }
 
+        uint256[] memory rewardAmounts = new uint256[](_weights.length);
+
         for(uint i = 0; i < _accounts.length; i++) {
 
             require(_weights[i] <= 100, "Invalid weight parameters");
@@ -225,12 +226,14 @@ contract EPIQuestion is Ownable, Pausable  {
                 ERC20(asset).transfer(_accounts[i], userRewarded);
             }
 
+            rewardAmounts[i] = userRewarded;
             distributedReward += userRewarded;
 
         }
 
         require(rewardAmount == distributedReward, "Rewards did not all distributed");
-        emit questionClosed(_id, reservedFee, stakingReserved, _accounts, _weights);
+        emit QuestionClosed(_id, reservedFee, stakingReserved, _accounts, rewardAmounts);
+
     }
 
     function closeExpiredQuestion(string[] memory ids) external onlyOwner {
@@ -247,10 +250,11 @@ contract EPIQuestion is Ownable, Pausable  {
 
     fallback() external payable {}
 
-    event parameterAdjusted(string name, uint256 amount);
-    event questionCreated(Question question);
-    event questionClosed(string id, uint256 reservedFee, uint256 stakingReserved, address[] account, uint256[] weight);
+    event ParameterAdjusted(string name, uint256 amount);
+    event QuestionCreated(Question question);
+    event QuestionClosed(string id, uint256 reservedFee, uint256 stakingReserved, address[] account, uint256[] weight);
     event SetAsset(address indexed asset, uint256 amount);
     event RemoveAsset(address indexed asset);
+    event SetStakingFeeReceiver(address indexed _receiverAddress);
 
 }
