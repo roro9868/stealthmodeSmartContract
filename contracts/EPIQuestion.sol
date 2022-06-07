@@ -66,6 +66,7 @@ contract EPIQuestion is Ownable, Pausable  {
         uint256 startTimestamp;
         uint256 expireAfterSecs;
         uint256 delegateAmount;
+        string tag;
     }
 
     mapping(string => Question) public questionsInfo;
@@ -154,18 +155,19 @@ contract EPIQuestion is Ownable, Pausable  {
         }
     }
 
-    function _createQuestion(address _asset, string memory _id, uint256 _amount, uint256 _expireAfterSecs) internal {
+    function _createQuestion(address _asset, string memory _id, uint256 _amount, uint256 _expireAfterSecs, string memory _tag) internal {
         questionsInfo[_id].creator = msg.sender;
         questionsInfo[_id].notClosed = true;
         questionsInfo[_id].delegateAmount = _amount;
         questionsInfo[_id].startTimestamp = block.timestamp;
         questionsInfo[_id].expireAfterSecs = _expireAfterSecs;
         questionsInfo[_id].asset = _asset;
+        questionsInfo[_id].tag = _tag;
         emit QuestionCreated(questionsInfo[_id]);
     }
 
 
-    function postQuestion(address _asset, string memory _id, uint256 _amount, uint256 expireAfterSecs) payable external whenNotPaused {
+    function postQuestion(address _asset, string memory _id, uint256 _amount, uint256 expireAfterSecs, string memory _tag) payable external whenNotPaused {
 
         require(isSupportedAsset(_asset), 'Invalid asset');
         require(questionsInfo[_id].creator == address(0), "duplicate question ID");
@@ -180,7 +182,7 @@ contract EPIQuestion is Ownable, Pausable  {
             ERC20(_asset).transferFrom(msg.sender, address(this), _amount);
         }
 
-        _createQuestion(_asset, _id, _amount, expireAfterSecs);
+        _createQuestion(_asset, _id, _amount, expireAfterSecs, _tag);
 
     }
 
@@ -190,7 +192,7 @@ contract EPIQuestion is Ownable, Pausable  {
 
     function closeQuestion(string memory _id, address[] memory _accounts, uint256[] memory _weights) whenNotPaused public {
 
-        require(isQuestionExpired(_id), 'Question not expired');
+        // require(isQuestionExpired(_id), 'Question not expired'); disabling this for testnet. 
         require(questionsInfo[_id].creator == msg.sender || msg.sender == owner(), 'msg.sender not authorized to close this question');
         require(questionsInfo[_id].notClosed, "Question closed");
         address asset = questionsInfo[_id].asset;
